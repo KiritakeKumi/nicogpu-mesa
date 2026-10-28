@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : int16 / uint16 storage + arithmetic (VK_KHR_16bit_storage + shaderInt16). For element i (a = x[i], b = y[i], b != 0,
+// no -32768):  o[k*N + i], k = 0..18 (int16): a+b, a-b, a*b, a/b, a%b, a<<(b&15), a>>(b&15), uint16(a)>>(b&15), min, max,
+//   abs(a), -a, a&b, a|b, a^b, ~a, a<b ? 1 : -1, sum_{k<4} k*a, int16_t(a*3000 in 32 bits)
+// u[k*N + i], k = 0..8 (uint): widenings, conversions and packs, see below.
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int16 : require
+layout(local_size_x = 64) in;
+layout(constant_id = 0) const uint N = 128u;
+layout(std430, set = 0, binding = 0) readonly buffer X { int16_t x[]; };
+layout(std430, set = 0, binding = 1) readonly buffer Y { int16_t y[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer O { int16_t o[]; };
+layout(std430, set = 0, binding = 3) writeonly buffer U { uint u[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   int16_t a = x[i], b = y[i];
+   int16_t sh = b & 15s;
+   o[0u * N + i] = a + b;
+   o[1u * N + i] = a - b;
+   o[2u * N + i] = a * b;
+   o[3u * N + i] = a / b;
+   o[4u * N + i] = a % b;
+   o[5u * N + i] = a << sh;
+   o[6u * N + i] = a >> sh;
+   o[7u * N + i] = int16_t(uint16_t(a) >> uint16_t(sh));
+   o[8u * N + i] = min(a, b);
+   o[9u * N + i] = max(a, b);
+   o[10u * N + i] = abs(a);
+   o[11u * N + i] = -a;
+   o[12u * N + i] = a & b;
+   o[13u * N + i] = a | b;
+   o[14u * N + i] = a ^ b;
+   o[15u * N + i] = ~a;
+   o[16u * N + i] = (a < b) ? 1s : -1s;
+   int16_t acc = 0s;
+   for (int k = 0; k < 4; k++)
+      acc += int16_t(k) * a;
+   o[17u * N + i] = acc;
+   o[18u * N + i] = int16_t(int(a) * 3000);
+
+   u[0u * N + i] = uint(uint16_t(a));
+   u[1u * N + i] = uint(int(a));
+   u[2u * N + i] = uint(uint16_t(a) * uint16_t(b));
+   u[3u * N + i] = uint(int(a) * int(b));
+   u[4u * N + i] = floatBitsToUint(float(a));
+   u[5u * N + i] = floatBitsToUint(float(uint16_t(b)));
+   u[6u * N + i] = uint(int(int16_t(int(a) * 3000)));
+   uint pk = pack32(u16vec2(uint16_t(a), uint16_t(b)));
+   u[7u * N + i] = pk;
+   u16vec2 w = unpack16(pk ^ 0x00ff0f0fu);
+   u[8u * N + i] = uint(w.y) * 3u + (uint(w.x) << 16);
+}

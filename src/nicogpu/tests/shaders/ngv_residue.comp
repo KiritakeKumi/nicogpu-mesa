@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// (section 8): cross-owner residue in workgroup shared memory, driven by ngv_residue.c.
+// MODE 0 (fill): every word of the shared array gets 0xA5A50000 | index; one word per invocation is copied out so the
+// stores stay live.  MODE 1 (read): the shared array is copied out WITHOUT being written first -- it holds whatever
+// the previous workgroup in this shared window left there (zero after an owner-change scrub).
+layout(local_size_x = 64) in;
+layout(constant_id = 0) const uint MODE = 0u;
+layout(std430, set = 0, binding = 0) buffer Out { uint o[]; };
+shared uint s[2048];
+
+void main()
+{
+   uint l = gl_LocalInvocationID.x;
+   if (MODE == 0u) {
+      for (uint i = l; i < 2048u; i += 64u)
+         s[i] = 0xA5A50000u | i;
+      barrier();
+      o[l] = s[2047u - l];
+   } else {
+      for (uint i = l; i < 2048u; i += 64u)
+         o[i] = s[i];
+   }
+}

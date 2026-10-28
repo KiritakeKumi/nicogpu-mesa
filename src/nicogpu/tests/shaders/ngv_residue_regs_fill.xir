@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: MIT
+// (section 8), ngv_residue regs mode: v8..v31 of every lane get 0xC3000000 | r << 16 | local index, nothing is stored. Hand-written (physical registers), loaded through
+// NGV_XO_DIR; build: python3 ngcomp/driver.py compile <this>.xir main.xo. v0 = packed local id, u2:2 = set-0 pointer.
+module main isa "0.1" abi "0.1"
+
+func @main (entry, segment="body", ugprs=44, vgprs=32) {
+b0:
+    and.vl v1, v0, 0x3ff
+    mov.vl v8, 0xC3080000
+    or v8, v8, v1
+    mov.vl v9, 0xC3090000
+    or v9, v9, v1
+    mov.vl v10, 0xC30A0000
+    or v10, v10, v1
+    mov.vl v11, 0xC30B0000
+    or v11, v11, v1
+    mov.vl v12, 0xC30C0000
+    or v12, v12, v1
+    mov.vl v13, 0xC30D0000
+    or v13, v13, v1
+    mov.vl v14, 0xC30E0000
+    or v14, v14, v1
+    mov.vl v15, 0xC30F0000
+    or v15, v15, v1
+    mov.vl v16, 0xC3100000
+    or v16, v16, v1
+    mov.vl v17, 0xC3110000
+    or v17, v17, v1
+    mov.vl v18, 0xC3120000
+    or v18, v18, v1
+    mov.vl v19, 0xC3130000
+    or v19, v19, v1
+    mov.vl v20, 0xC3140000
+    or v20, v20, v1
+    mov.vl v21, 0xC3150000
+    or v21, v21, v1
+    mov.vl v22, 0xC3160000
+    or v22, v22, v1
+    mov.vl v23, 0xC3170000
+    or v23, v23, v1
+    mov.vl v24, 0xC3180000
+    or v24, v24, v1
+    mov.vl v25, 0xC3190000
+    or v25, v25, v1
+    mov.vl v26, 0xC31A0000
+    or v26, v26, v1
+    mov.vl v27, 0xC31B0000
+    or v27, v27, v1
+    mov.vl v28, 0xC31C0000
+    or v28, v28, v1
+    mov.vl v29, 0xC31D0000
+    or v29, v29, v1
+    mov.vl v30, 0xC31E0000
+    or v30, v30, v1
+    mov.vl v31, 0xC31F0000
+    or v31, v31, v1
+    endpgm
+}

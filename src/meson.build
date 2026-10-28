@@ -124,6 +124,9 @@ endif
 if with_kosmickrisp_vk
   subdir('kosmickrisp')
 endif
+if with_nicogpu_vk
+  subdir('nicogpu')
+endif
 if with_gallium
   subdir('mesa')
 endif

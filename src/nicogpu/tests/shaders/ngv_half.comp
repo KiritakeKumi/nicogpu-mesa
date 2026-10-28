@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : packHalf2x16 / unpackHalf2x16 (ncnn's fp16 storage). Per element: o[2i] = packHalf2x16(vec2(f[2i], f[2i+1])),
+// o[2i+1] = floatBitsToUint(unpackHalf2x16(h[i]).x), o[2N + i] = floatBitsToUint(unpackHalf2x16(h[i]).y).
+layout(local_size_x = 64) in;
+layout(constant_id = 0) const uint N = 128u;
+layout(std430, set = 0, binding = 0) readonly buffer F { float f[]; };
+layout(std430, set = 0, binding = 1) readonly buffer H { uint h[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer O { uint o[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   o[2u * i] = packHalf2x16(vec2(f[2u * i], f[2u * i + 1u]));
+   vec2 u = unpackHalf2x16(h[i]);
+   o[2u * i + 1u] = floatBitsToUint(u.x);
+   o[2u * N + i] = floatBitsToUint(u.y);
+}

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// batch 2 (survey): built-in ids -- local id / index, workgroup id, workgroup size, 2D workgroup.
+// (gl_NumWorkGroups: see ngv_numwg.comp,.)
+layout(local_size_x = 16, local_size_y = 4) in;
+layout(std430, set = 0, binding = 0) writeonly buffer Out { uvec4 dst[]; };
+
+void main()
+{
+   uint lin = gl_WorkGroupID.y * 3u + gl_WorkGroupID.x; // the test dispatches 3 x 2 workgroups
+   uint g = lin * 64u + gl_LocalInvocationIndex;
+   dst[g] = uvec4(gl_LocalInvocationID.x | (gl_LocalInvocationID.y << 8),
+                  gl_WorkGroupID.x | (gl_WorkGroupID.y << 8),
+                  gl_GlobalInvocationID.x | (gl_GlobalInvocationID.y << 16),
+                  gl_WorkGroupSize.x * 100u + gl_WorkGroupSize.y);
+}

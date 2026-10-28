@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// batch 3 test shader for the real compile path (NIR -> ngcomp), same computation as scale_bias.comp.
+// build: glslangValidator -V -S comp -e ngv_scale_bias --source-entrypoint main --target-env vulkan1.3
+//        --vn ngv_scale_bias_real_spv scale_bias_real.comp
+// No bounds guard: the buffer descriptors bound every access in hardware (reads past the end return 0, writes
+// are dropped, the descriptor spec section 3.2) and the test dispatches exactly as many invocations as there are elements.
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0, std430) readonly buffer Src { uint v[]; } src;
+layout(set = 0, binding = 1, std430) buffer Dst { uint v[]; } dst;
+layout(push_constant) uniform PC { uint scale; uint bias; } pc;
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    dst.v[i] = src.v[i] * pc.scale + pc.bias;
+}

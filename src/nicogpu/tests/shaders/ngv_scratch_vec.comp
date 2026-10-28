@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// checklist 3: scratch with 32/64/96/128-bit element accesses at non-power-of-two strides and odd word offsets.
+// uvec3 a[5] (12 B stride), uvec4 b[3] (16 B), struct S s[3] (20 B stride, uvec3 member at word offset 1).
+// Every array is read back with a data-dependent index, so none of it can be turned into SSA.
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+
+struct S { uint x; uvec3 y; uint z; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   uint v = src[i];
+   uvec3 a[5];
+   uvec4 b[3];
+   S s[3];
+   for (uint k = 0u; k < 5u; k++)
+      a[k] = uvec3(v + k, v * 2u + k, v ^ k);
+   for (uint k = 0u; k < 3u; k++) {
+      b[k] = uvec4(v + k * 5u, v + k * 7u, v + k * 11u, v + k * 13u);
+      s[k] = S(v + k, uvec3(v * 3u + k, v ^ (k << 4), v - k), v ^ (k * 77u));
+   }
+   uint j = (v >> 2) & 3u;
+   uint m = min((v >> 4) & 3u, 2u);
+   uvec3 aj = a[j];
+   uvec4 bm = b[m];
+   S sm = s[m];
+   uint o = i * 8u;
+   dst[o + 0u] = aj.x;
+   dst[o + 1u] = aj.y;
+   dst[o + 2u] = aj.z;
+   dst[o + 3u] = bm.w;
+   dst[o + 4u] = bm.x + bm.y + bm.z;
+   dst[o + 5u] = sm.x + sm.z;
+   dst[o + 6u] = sm.y.x;
+   dst[o + 7u] = sm.y.y + sm.y.z;
+}

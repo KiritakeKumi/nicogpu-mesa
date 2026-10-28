@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// checklist 6: big scratch frame (128 words = 512 B) for the growth-path test (small ngv_scratch.comp first).
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   uint v = src[i];
+   uint tmp[128];
+   for (uint k = 0u; k < 128u; k++)
+      tmp[k] = v ^ (k * 0x9e3779b1u);
+   dst[i] = tmp[(v >> 3) & 127u] + tmp[v & 127u];
+}

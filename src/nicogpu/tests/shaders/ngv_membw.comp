@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// ngv_membw: shader memory bandwidth probe (baseline). Grid-stride loop over N words with T = WG * 64 threads.
+//   MODE 0: d[i] = s[i]         (copy: one load + one store per word)
+//   MODE 1: acc += s[i]; d[gid] = acc  (read: loads only, one store per thread at the end)
+//   MODE 2: d[i] = i * K        (write: stores only)
+// gl_NumWorkGroups is not used (ngcomp gap): the thread count T comes in as a specialization constant.
+layout(local_size_x = 64) in;
+layout(constant_id = 0) const uint MODE = 0u;
+layout(constant_id = 1) const uint N = 1024u;
+layout(constant_id = 2) const uint T = 64u;
+layout(std430, binding = 0) readonly buffer Src { uint s[]; };
+layout(std430, binding = 1) writeonly buffer Dst { uint d[]; };
+
+void main()
+{
+   uint gid = gl_GlobalInvocationID.x;
+   if (MODE == 1u) {
+      uint acc = 0u;
+      for (uint i = gid; i < N; i += T)
+         acc += s[i];
+      d[gid] = acc;
+   } else if (MODE == 0u) {
+      for (uint i = gid; i < N; i += T)
+         d[i] = s[i];
+   } else {
+      for (uint i = gid; i < N; i += T)
+         d[i] = i * 2654435761u;
+   }
+}

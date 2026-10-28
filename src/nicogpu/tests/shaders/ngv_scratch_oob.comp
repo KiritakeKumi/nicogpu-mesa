@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// checklist 2: scratch out of bounds (ERRATA: read 0, write dropped, no trap, neighbour lanes untouched).
+// tmp[8] is 32 B = the whole per-lane frame.  Indexing with a data-dependent index >= 8 is undefined behaviour in
+// Vulkan/GLSL, but the hardware contract is defined, so this is only a hardware/model probe (opt-in: NGV_EXTRA=1).
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   uint v = src[i];
+   uint tmp[8];
+   for (uint k = 0u; k < 8u; k++)
+      tmp[k] = v + k;
+   uint bad = 8u + (v & 3u) * 5u;        // 8, 13, 18, 23: all past the end of the frame
+   tmp[bad] = 0xdeadbeefu;               // must be dropped
+   uint rd = tmp[bad + 1u];              // must read 0
+   dst[i * 4u + 0u] = rd;
+   dst[i * 4u + 1u] = tmp[v & 7u];       // in-bounds data intact
+   dst[i * 4u + 2u] = tmp[(v >> 3) & 7u];
+   dst[i * 4u + 3u] = tmp[7u];           // last in-bounds word not clobbered by the dropped write
+}

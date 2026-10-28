@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// batch 2 (survey): dynamic-trip-count loop (phis, divergent loop exit), push constant, 32-bit multiply.
+// out[i] = sum_{k < iters} in[i*16 + k] * (k + 1)
+layout(local_size_x = 32) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+layout(push_constant) uniform PC { uint iters; uint count; } pc;
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   if (i >= pc.count)
+      return;
+   uint acc = 0u;
+   for (uint k = 0u; k < pc.iters; k++)
+      acc += src[i * 16u + k] * (k + 1u);
+   dst[i] = acc;
+}

@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// checklist 5/7: buffer atomics, all operations, uint and int, with return values.  Result checks must not
+// depend on lane service order: sums, min/max, bit-ops, and multisets (exchange), a unique winner (compSwap) and a
+// ticket permutation (atomicAdd return values).
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) buffer Cells {
+   uint add;     // 0  init 0
+   uint umin;    // 1  init 0xffffffff
+   uint umax;    // 2  init 0
+   uint band;    // 3  init 0xffffffff
+   uint bor;     // 4  init 0
+   uint bxor;    // 5  init 0
+   uint xchg;    // 6  init 0xcafe0000
+   uint cas;     // 7  init 0
+   uint ticket;  // 8  init 0
+   int imin;     // 9  init INT_MAX
+   int imax;     // 10 init INT_MIN
+   int icas;     // 11 init 0
+   int ixchg;    // 12 init -77
+   int iadd;     // 13 init 0
+};
+layout(std430, set = 0, binding = 2) writeonly buffer Rets { uint rets[]; };  // 5 words per invocation
+
+void main()
+{
+   uint g = gl_GlobalInvocationID.x;
+   uint v = src[g];
+   int sv = int(v);
+   atomicAdd(add, v);
+   atomicMin(umin, v);
+   atomicMax(umax, v);
+   atomicAnd(band, v | 0x80000001u);
+   atomicOr(bor, v & 0x0f0f0f0fu);
+   atomicXor(bxor, v);
+   atomicMin(imin, sv);
+   atomicMax(imax, sv);
+   atomicAdd(iadd, sv);
+   uint o = g * 5u;
+   rets[o + 0u] = atomicAdd(ticket, 1u);
+   rets[o + 1u] = atomicExchange(xchg, v);
+   rets[o + 2u] = atomicCompSwap(cas, 0u, g + 1u);
+   rets[o + 3u] = uint(atomicCompSwap(icas, 0, -int(g) - 1));
+   rets[o + 4u] = uint(atomicExchange(ixchg, sv));
+}

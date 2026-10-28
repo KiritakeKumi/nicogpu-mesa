@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// batch 2 (survey): uniform buffer (std140 vec4 + uvec4), vec4 storage buffers, a 8x8 workgroup, 2D dispatch.
+// out[y*16 + x] = in[y*16 + x] * scale + vec4(bias)
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std140, set = 0, binding = 0) uniform U { vec4 scale; uvec4 bias; } u;
+layout(std430, set = 0, binding = 1) readonly buffer In { vec4 src[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer Out { vec4 dst[]; };
+
+void main()
+{
+   uvec2 g = gl_GlobalInvocationID.xy;
+   uint idx = g.y * 16u + g.x;
+   dst[idx] = src[idx] * u.scale + vec4(u.bias);
+}

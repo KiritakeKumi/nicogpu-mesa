@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : gl_NumWorkGroups, direct and indirect dispatch (the driver passes a pointer to the grid in two push dwords:
+// the upload area for vkCmdDispatch, the VkDispatchIndirectCommand itself for vkCmdDispatchIndirect).  Every
+// invocation writes the grid it sees and its linear workgroup index, computed from gl_NumWorkGroups.
+layout(local_size_x = 8, local_size_y = 2) in;
+layout(std430, set = 0, binding = 0) writeonly buffer Out { uvec4 dst[]; };
+
+void main()
+{
+   uvec3 n = gl_NumWorkGroups;
+   uint wg = (gl_WorkGroupID.z * n.y + gl_WorkGroupID.y) * n.x + gl_WorkGroupID.x;
+   dst[wg * 16u + gl_LocalInvocationIndex] = uvec4(n, wg);
+}

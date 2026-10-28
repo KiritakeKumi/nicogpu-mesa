@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// batch 2: workgroup shared memory + barrier, dst[g] = 3 * src[wg*64 + 63 - l] + wg.
+// 64 invocations = two 32-lane warps, so the barrier really synchronizes warps.
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+shared uint tile[64];
+
+void main()
+{
+   uint l = gl_LocalInvocationID.x;
+   uint g = gl_GlobalInvocationID.x;
+   tile[l] = src[g] * 3u + gl_WorkGroupID.x;
+   barrier();
+   dst[g] = tile[63u - l];
+}

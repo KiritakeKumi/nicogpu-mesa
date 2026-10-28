@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// batch 2 (survey, expected to hit a compiler gap): dynamically indexed function-local array (needs scratch).
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   uint tmp[8];
+   for (uint k = 0u; k < 8u; k++)
+      tmp[k] = src[i] + k;
+   dst[i] = tmp[src[i] & 7u];
+}

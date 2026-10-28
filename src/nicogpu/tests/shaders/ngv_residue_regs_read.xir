@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: MIT
+// (section 8), ngv_residue regs mode: v8..v31 are stored WITHOUT being written first: o[l * 32 + r - 8] = v<r>. Hand-written (physical registers), loaded through
+// NGV_XO_DIR; build: python3 ngcomp/driver.py compile <this>.xir main.xo. v0 = packed local id, u2:2 = set-0 pointer.
+module main isa "0.1" abi "0.1"
+
+func @main (entry, segment="body", ugprs=44, vgprs=32) {
+b0:
+    and.vl v1, v0, 0x3ff
+    sll.vi v2, v1, 7
+    uld.b128 u40:4, u2:2, 0, def
+    waitcnt 63, 31, 31, 0, 0, 7
+    st.buf.b32 v8, u40:4, v2, 0, def
+    st.buf.b32 v9, u40:4, v2, 4, def
+    st.buf.b32 v10, u40:4, v2, 8, def
+    st.buf.b32 v11, u40:4, v2, 12, def
+    st.buf.b32 v12, u40:4, v2, 16, def
+    st.buf.b32 v13, u40:4, v2, 20, def
+    st.buf.b32 v14, u40:4, v2, 24, def
+    st.buf.b32 v15, u40:4, v2, 28, def
+    st.buf.b32 v16, u40:4, v2, 32, def
+    st.buf.b32 v17, u40:4, v2, 36, def
+    st.buf.b32 v18, u40:4, v2, 40, def
+    st.buf.b32 v19, u40:4, v2, 44, def
+    st.buf.b32 v20, u40:4, v2, 48, def
+    st.buf.b32 v21, u40:4, v2, 52, def
+    st.buf.b32 v22, u40:4, v2, 56, def
+    st.buf.b32 v23, u40:4, v2, 60, def
+    st.buf.b32 v24, u40:4, v2, 64, def
+    st.buf.b32 v25, u40:4, v2, 68, def
+    st.buf.b32 v26, u40:4, v2, 72, def
+    st.buf.b32 v27, u40:4, v2, 76, def
+    st.buf.b32 v28, u40:4, v2, 80, def
+    st.buf.b32 v29, u40:4, v2, 84, def
+    st.buf.b32 v30, u40:4, v2, 88, def
+    st.buf.b32 v31, u40:4, v2, 92, def
+    endpgm
+}

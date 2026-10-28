@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// checklist 5/7: atomics on workgroup shared memory (shared_atomic / shared_atomic_swap).
+// 64 invocations = two warps.  Per workgroup: res[wg*8+] = {count, max, or, sum, cas winner (l+1), min, 0, 0}.
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Res { uint res[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer Tick { uint tick[]; };
+shared uint s_cnt;
+shared uint s_max;
+shared uint s_or;
+shared uint s_sum;
+shared uint s_min;
+shared uint s_cas;
+
+void main()
+{
+   uint l = gl_LocalInvocationID.x;
+   uint g = gl_GlobalInvocationID.x;
+   uint v = src[g];
+   if (l == 0u) {
+      s_cnt = 0u;
+      s_max = 0u;
+      s_or = 0u;
+      s_sum = 0u;
+      s_min = 0xffffffffu;
+      s_cas = 0u;
+   }
+   barrier();
+   tick[g] = atomicAdd(s_cnt, 1u);
+   atomicMax(s_max, v);
+   atomicMin(s_min, v);
+   atomicOr(s_or, v & 0x00ff00ffu);
+   atomicAdd(s_sum, v);
+   atomicCompSwap(s_cas, 0u, l + 1u);
+   barrier();
+   if (l == 0u) {
+      uint w = gl_WorkGroupID.x * 8u;
+      res[w + 0u] = s_cnt;
+      res[w + 1u] = s_max;
+      res[w + 2u] = s_or;
+      res[w + 3u] = s_sum;
+      res[w + 4u] = s_cas;
+      res[w + 5u] = s_min;
+      res[w + 6u] = 0u;
+      res[w + 7u] = 0u;
+   }
+}

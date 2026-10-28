@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : float16 storage + arithmetic (VK_KHR_16bit_storage + shaderFloat16). For element i (x = a[i], y = b[i], z = a[i+1]):
+//   o[k*N + i], k = 0..13: x+y, x-y, x*y, fma(x,y,z), min, max, -x, abs(x), x/y, sqrt(abs(x)), float16_t(float(x)*3.0),
+//                          float16_t(int16 of y's bits), float16_t(uint16 of y's bits), float16_t(int16_t(x)) rounded back
+//   p[i] (u16vec4): x < y, float16BitsToUint16(x*y), isnan(x) | isinf(x) << 1 | (x == y) << 2, uint16_t(int16_t(x))
+// b is read as f16vec2 (vector load), p is written as a u16vec4 (vector store).
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int16 : require
+layout(local_size_x = 64) in;
+layout(constant_id = 0) const uint N = 128u;
+layout(std430, set = 0, binding = 0) readonly buffer A { float16_t a[]; };
+layout(std430, set = 0, binding = 1) readonly buffer B { f16vec2 b2[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer O { float16_t o[]; };
+layout(std430, set = 0, binding = 3) writeonly buffer P { u16vec4 p[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   float16_t x = a[i];
+   float16_t z = a[(i + 1u) % N];
+   float16_t y = b2[i >> 1u][i & 1u];
+   o[0u * N + i] = x + y;
+   o[1u * N + i] = x - y;
+   o[2u * N + i] = x * y;
+   o[3u * N + i] = fma(x, y, z);
+   o[4u * N + i] = min(x, y);
+   o[5u * N + i] = max(x, y);
+   o[6u * N + i] = -x;
+   o[7u * N + i] = abs(x);
+   o[8u * N + i] = x / y;
+   o[9u * N + i] = sqrt(abs(x));
+   o[10u * N + i] = float16_t(float(x) * 3.0);
+   o[11u * N + i] = float16_t(float16BitsToInt16(y));
+   o[12u * N + i] = float16_t(float16BitsToUint16(y));
+   o[13u * N + i] = float16_t(int16_t(x));
+   p[i] = u16vec4(uint16_t(x < y), float16BitsToUint16(x * y),
+                  uint16_t((isnan(x) ? 1u : 0u) | (isinf(x) ? 2u : 0u) | (x == y ? 4u : 0u)), uint16_t(int16_t(x)));
+}

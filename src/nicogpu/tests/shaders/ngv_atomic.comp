@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// batch 2 (survey, expected to hit a compiler gap): buffer atomics.
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) buffer Cnt { uint counter; };
+
+void main()
+{
+   atomicAdd(counter, 1u);
+}

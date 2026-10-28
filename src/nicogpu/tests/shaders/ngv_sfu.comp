@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : f32 transcendental functions through the real compile path (the dEQP compute groups only cover f16 for these).
+// For element i (x = a[i], y = b[i]):
+//   o[k*N + i], k = 0..: sin, cos, tan, frexp significand, ldexp(x, int(y)), exp, exp2, log(|x|), log2(|x|), pow(|x|, y),
+//                        sqrt(|x|), inversesqrt(|x|), asin(u), acos(u), atan(x), atan(y, x), sinh(x), cosh(x), tanh(x),
+//                        with u = clamp(x / 4, -1, 1)
+//   p[i] = the frexp exponent of x
+layout(local_size_x = 64) in;
+layout(constant_id = 0) const uint N = 128u;
+layout(std430, set = 0, binding = 0) readonly buffer A { float a[]; };
+layout(std430, set = 0, binding = 1) readonly buffer B { float b[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer O { float o[]; };
+layout(std430, set = 0, binding = 3) writeonly buffer P { int p[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   float x = a[i], y = b[i];
+   float u = clamp(x / 4.0, -1.0, 1.0);
+   int e;
+   float m = frexp(x, e);
+   o[0u * N + i] = sin(x);
+   o[1u * N + i] = cos(x);
+   o[2u * N + i] = tan(x);
+   o[3u * N + i] = m;
+   o[4u * N + i] = ldexp(x, int(y));
+   o[5u * N + i] = exp(x);
+   o[6u * N + i] = exp2(x);
+   o[7u * N + i] = log(abs(x));
+   o[8u * N + i] = log2(abs(x));
+   o[9u * N + i] = pow(abs(x), y);
+   o[10u * N + i] = sqrt(abs(x));
+   o[11u * N + i] = inversesqrt(abs(x));
+   o[12u * N + i] = asin(u);
+   o[13u * N + i] = acos(u);
+   o[14u * N + i] = atan(x);
+   o[15u * N + i] = atan(y, x);
+   o[16u * N + i] = sinh(x);
+   o[17u * N + i] = cosh(x);
+   o[18u * N + i] = tanh(x);
+   p[i] = e;
+}

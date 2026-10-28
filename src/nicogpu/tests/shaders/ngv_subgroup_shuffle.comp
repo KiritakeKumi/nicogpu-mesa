@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : subgroup SHUFFLE / SHUFFLE_RELATIVE / QUAD (reported only by a device with the XLANE unit: the model).
+// Full subgroups only (64 invocations); out-of-range relative shuffles are masked to 0 (undefined in Vulkan).
+// 10 words per invocation, checked in ngv_shaders.c (case_subgroup_shuffle).
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_shuffle : require
+#extension GL_KHR_shader_subgroup_shuffle_relative : require
+#extension GL_KHR_shader_subgroup_quad : require
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+
+void main()
+{
+   uint g = gl_WorkGroupID.x * 64u + gl_LocalInvocationIndex;
+   uint o = g * 10u;
+   uint x = src[g];
+   uint l = gl_SubgroupInvocationID;
+   uint up = subgroupShuffleUp(x, 3u);
+   uint dn = subgroupShuffleDown(x, 4u);
+   dst[o + 0u] = subgroupShuffle(x, (l * 7u + 3u) & 31u);
+   dst[o + 1u] = subgroupShuffleXor(x, 5u);
+   dst[o + 2u] = l >= 3u ? up : 0u;
+   dst[o + 3u] = l < 28u ? dn : 0u;
+   dst[o + 4u] = subgroupQuadBroadcast(x, 2u);
+   dst[o + 5u] = subgroupQuadSwapHorizontal(x);
+   dst[o + 6u] = subgroupQuadSwapVertical(x);
+   dst[o + 7u] = subgroupQuadSwapDiagonal(x);
+   dst[o + 8u] = subgroupShuffleXor((x & 1u) != 0u, 1u) ? 1u : 0u;   // bool shuffle (lower_boolean_shuffle)
+   uvec2 v = subgroupShuffle(uvec2(x, ~x), l ^ 31u);                 // vector shuffle (scalarized)
+   dst[o + 9u] = v.x ^ (v.y << 1);
+}

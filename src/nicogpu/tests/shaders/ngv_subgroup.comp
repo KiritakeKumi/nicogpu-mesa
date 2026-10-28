@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : subgroup BASIC / VOTE / BALLOT (the operations every Nicogpu device reports, with or without XLANE).
+// 48 invocations per workgroup = one full subgroup + one with 16 active lanes; x[] is host data.  12 words per
+// invocation, checked against a host model in ngv_shaders.c (case_subgroup).
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_vote : require
+#extension GL_KHR_shader_subgroup_ballot : require
+layout(local_size_x = 48) in;
+layout(std430, set = 0, binding = 0) readonly buffer In { uint src[]; };
+layout(std430, set = 0, binding = 1) writeonly buffer Out { uint dst[]; };
+
+void main()
+{
+   uint g = gl_WorkGroupID.x * 48u + gl_LocalInvocationIndex;
+   uint o = g * 12u;
+   uint x = src[g];
+   bool c = (x & 1u) != 0u;
+   uvec4 b = subgroupBallot(c);
+   dst[o + 0u] = gl_SubgroupInvocationID | (gl_SubgroupID << 8) | (gl_NumSubgroups << 16) | (gl_SubgroupSize << 24);
+   dst[o + 1u] = subgroupElect() ? 1u : 0u;
+   dst[o + 2u] = b.x;
+   dst[o + 3u] = b.y | b.z | b.w;
+   dst[o + 4u] = (subgroupAny(c) ? 1u : 0u) | (subgroupAll(c) ? 2u : 0u) | (subgroupAllEqual(x & 0xF0u) ? 4u : 0u) |
+                 (subgroupAllEqual(c) ? 8u : 0u) | (subgroupAllEqual(uintBitsToFloat(x & 0x3F800000u)) ? 16u : 0u);
+   dst[o + 5u] = subgroupBroadcastFirst(x);
+   dst[o + 6u] = subgroupBroadcast(x, 3u);
+   dst[o + 7u] = subgroupBallotBitCount(b) | (subgroupBallotInclusiveBitCount(b) << 8) |
+                 (subgroupBallotExclusiveBitCount(b) << 16) | ((subgroupInverseBallot(b) ? 1u : 0u) << 24) |
+                 ((subgroupBallotBitExtract(b, 5u) ? 1u : 0u) << 25);
+   dst[o + 8u] = subgroupBallotFindLSB(b) | (subgroupBallotFindMSB(b) << 8);
+   dst[o + 9u] = gl_SubgroupEqMask.x ^ gl_SubgroupGtMask.x;          // == ge mask
+   dst[o + 10u] = gl_SubgroupLtMask.x | (gl_SubgroupLeMask.y | gl_SubgroupGeMask.z | gl_SubgroupGtMask.w);
+   subgroupBarrier();
+   subgroupMemoryBarrier();
+   if ((x & 6u) != 0u) {                                              // divergent
+      uint t = subgroupBroadcastFirst(gl_SubgroupInvocationID) | (subgroupElect() ? 0x100u : 0u) |
+               (subgroupAll((x & 8u) != 0u) ? 0x200u : 0u) | (bitCount(subgroupBallot(true).x) << 16);
+      dst[o + 11u] = t;
+   } else {
+      dst[o + 11u] = 0xFFFFFFFFu;
+   }
+}

@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: MIT
+#version 450
+// : int8 storage + arithmetic (VK_KHR_8bit_storage + shaderInt8) and int64 values / vectors (shaderInt64).
+// For element i (a = x[i], b = y[i], b != 0, no -128):  o[k*N + i], k = 0..9 (int8): a+b, a-b, a*b, a/b, a<<(b&7), a>>(b&7),
+//   uint8(a)>>(b&7), min(a,b), max(a,b), a<b ? 1 : -1
+// v = q[i] (i64vec2, v.y != 0):  r[k*N + i], k = 0..5 (i64vec2): (p+q, p-q), (p*q, p/q), (p<<(q&63), p>>(q&63)),
+//   (min, max), (abs(p), -p), (p&q, p^q)  with p = v.x, q = v.y
+// w[k*N + i], k = 0..2 (uint): widenings of the 8-bit operations (uint(a) of int8, uint(uint8_t(a)), int8 -> int64 -> low word)
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+layout(local_size_x = 64) in;
+layout(constant_id = 0) const uint N = 128u;
+layout(std430, set = 0, binding = 0) readonly buffer X { int8_t x[]; };
+layout(std430, set = 0, binding = 1) readonly buffer Y { int8_t y[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer O { int8_t o[]; };
+layout(std430, set = 0, binding = 3) readonly buffer Q { i64vec2 q[]; };
+layout(std430, set = 0, binding = 4) writeonly buffer R { i64vec2 r[]; };
+layout(std430, set = 0, binding = 5) writeonly buffer W { uint w[]; };
+
+void main()
+{
+   uint i = gl_GlobalInvocationID.x;
+   int8_t a = x[i], b = y[i];
+   int8_t sh = b & int8_t(7);
+   o[0u * N + i] = a + b;
+   o[1u * N + i] = a - b;
+   o[2u * N + i] = a * b;
+   o[3u * N + i] = a / b;
+   o[4u * N + i] = a << sh;
+   o[5u * N + i] = a >> sh;
+   o[6u * N + i] = int8_t(uint8_t(a) >> uint8_t(sh));
+   o[7u * N + i] = min(a, b);
+   o[8u * N + i] = max(a, b);
+   o[9u * N + i] = (a < b) ? int8_t(1) : int8_t(-1);
+
+   i64vec2 v = q[i];
+   int64_t p = v.x, s = v.y;
+   int sh64 = int(s & 63l);
+   r[0u * N + i] = i64vec2(p + s, p - s);
+   r[1u * N + i] = i64vec2(p * s, p / s);
+   r[2u * N + i] = i64vec2(p << sh64, p >> sh64);
+   r[3u * N + i] = i64vec2(min(p, s), max(p, s));
+   r[4u * N + i] = i64vec2(abs(p), -p);
+   r[5u * N + i] = i64vec2(p & s, p ^ s);
+
+   w[0u * N + i] = uint(int(a));
+   w[1u * N + i] = uint(uint8_t(a));
+   w[2u * N + i] = uint(int64_t(a) * 1000l);
+}
